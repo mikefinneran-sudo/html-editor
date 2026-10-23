@@ -33,7 +33,7 @@ async function openFixture(page) {
 }
 
 async function select(page, id) {
-  await page.frameLocator('#canvas').locator('#' + id).click();
+  await page.frameLocator('#canvas').locator('#' + id).click({ position: { x: 4, y: 4 } });
   await expect(page.locator('[data-handle="se"]')).toBeVisible();
 }
 
