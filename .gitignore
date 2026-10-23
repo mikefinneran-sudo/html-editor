@@ -4,3 +4,5 @@ node_modules/
 .vscode/
 .idea/
 LAUNCH.md
+test-results/
+playwright-report/
