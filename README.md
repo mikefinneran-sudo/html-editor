@@ -54,6 +54,18 @@ npx serve .
 
 Then open `http://localhost:8000`.
 
+## Edit a local site
+
+`server.js` serves the editor and saves straight back into a folder of `.html` files — no File System Access API needed, so it works from Safari, Firefox and iPad. Node 18+, no dependencies:
+
+```sh
+node server.js --root ~/Code/my-site --port 8080
+```
+
+Open `http://localhost:8080/?file=index.html` (the path is relative to `--root`; use `?file=about/index.html` for subfolders). `⌘S` / `Ctrl+S` writes the file. Only `.html` files inside `--root` can be read or written.
+
+From an iPad on the same Wi-Fi: the server listens on all interfaces and prints its LAN address at startup (or run `ipconfig getifaddr en0` on the Mac). Open `http://<mac-ip>:8080/?file=index.html` in Safari. Tap to select, then drag the handles with a finger or Apple Pencil: corner/edge squares resize, the blue grip reorders the element among its siblings, and the orange bars change padding. There is no login — anyone on the network who can reach the port can edit the site, so only run it on a network you trust.
+
 ## Architecture
 
 ```
@@ -62,12 +74,14 @@ css/editor.css          — all styling, dark/light tokens
 js/state.js             — global state, undo/redo, autosave, snippets, recents
 js/blocks.js            — component library (block definitions)
 js/canvas.js            — iframe wiring, selection overlay, drag-drop, hover
+js/handles.js           — resize / move / padding handles (Pointer Events)
 js/tree.js              — DOM tree panel + status-bar breadcrumbs
 js/properties.js        — style/attributes/HTML tabs
 js/blocks-panel.js      — blocks sidebar + snippets/recent files
 js/file.js              — File System Access API, import/export
 js/keyboard.js          — global shortcuts
 js/editor.js            — bootstrap, toolbar wiring, empty state
+server.js               — optional local save server (node server.js --root <dir>)
 ```
 
 ## Contributing

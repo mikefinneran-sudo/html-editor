@@ -3,6 +3,7 @@ window.EditorState = (function() {
   const state = {
     doc: null,              // The Document inside the iframe
     fileHandle: null,       // FileSystemFileHandle if linked
+    serverPath: null,       // site-relative path when opened through server.js
     fileName: 'untitled.html',
     selected: null,         // Currently selected element in iframe doc
     dirty: false,
@@ -159,8 +160,9 @@ window.EditorState = (function() {
     emit('dirty-changed', d);
   }
 
-  function setFile(handle, name) {
+  function setFile(handle, name, serverPath = null) {
     state.fileHandle = handle;
+    state.serverPath = serverPath;
     state.fileName = name || (handle && handle.name) || 'untitled.html';
     emit('file-changed');
   }

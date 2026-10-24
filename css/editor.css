@@ -919,6 +919,7 @@ body[data-mode="source"] .workspace { grid-template-columns: 1fr; }
   position: absolute;
   inset: 0;
   pointer-events: none;
+  touch-action: none;
   z-index: 10;
 }
 .sel-box {
@@ -988,6 +989,50 @@ body[data-mode="source"] .workspace { grid-template-columns: 1fr; }
 .sel-toolbar.ctx-table [data-context-group="table"] { display: inline-flex; }
 .sel-toolbar.ctx-list  [data-context-group="list"]  { display: inline-flex; }
 .sel-toolbar button [data-lucide], .sel-toolbar button .lucide { width: 14px; height: 14px; }
+/* Resize / move / padding handles. The 24px box is the hit target (32px
+   on coarse pointers — finger, Apple Pencil); the visible mark is ::before. */
+.sel-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sel-handle[hidden] { display: none; }
+.sel-handle::before {
+  content: '';
+  box-sizing: border-box;
+  background: white;
+  border: 2px solid var(--selection);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.sel-handle.resize::before { width: 10px; height: 10px; border-radius: 2px; }
+.sel-handle[data-handle="n"], .sel-handle[data-handle="s"] { cursor: ns-resize; }
+.sel-handle[data-handle="e"], .sel-handle[data-handle="w"] { cursor: ew-resize; }
+.sel-handle[data-handle="ne"], .sel-handle[data-handle="sw"] { cursor: nesw-resize; }
+.sel-handle[data-handle="nw"], .sel-handle[data-handle="se"] { cursor: nwse-resize; }
+.sel-handle.pad::before { background: #f59e0b; border-color: white; border-radius: 3px; }
+.sel-handle[data-handle="pad-top"]::before, .sel-handle[data-handle="pad-bottom"]::before { width: 16px; height: 6px; }
+.sel-handle[data-handle="pad-left"]::before, .sel-handle[data-handle="pad-right"]::before { width: 6px; height: 16px; }
+.sel-handle[data-handle="pad-top"], .sel-handle[data-handle="pad-bottom"] { cursor: row-resize; }
+.sel-handle[data-handle="pad-left"], .sel-handle[data-handle="pad-right"] { cursor: col-resize; }
+.sel-handle.move { cursor: grab; }
+.sel-handle.move::before { width: 20px; height: 20px; background: var(--selection); border-color: white; border-radius: 4px; }
+.sel-handle.move svg { position: absolute; width: 16px; height: 16px; color: white; pointer-events: none; }
+.sel-handle.move.active { cursor: grabbing; }
+.sel-handle.active::before { transform: scale(1.3); }
+.sel-handles.dragging .sel-handle:not(.active) { opacity: 0.35; }
+@media (pointer: coarse) {
+  .sel-handle { width: 32px; height: 32px; }
+}
 .hover-box {
   position: absolute;
   outline: 1.5px dashed var(--hover);

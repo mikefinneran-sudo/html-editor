@@ -18,6 +18,7 @@
     requestAnimationFrame(() => window.renderIcons());
 
     window.Canvas.init();
+    window.Handles.init();
     window.Tree.init();
     window.Properties.init();
     window.BlocksPanel.init();
@@ -29,6 +30,11 @@
     wireTabs();
     wireStatusUpdates();
     wireModeToggle();
+
+    // Served by server.js: /?file=<site-relative path> opens that file and
+    // Cmd/Ctrl+S writes it back through the server.
+    const serverFile = new URLSearchParams(location.search).get('file');
+    if (serverFile) window.FileOps.openServerFile(serverFile);
 
     // Restore autosave if any
     const auto = ES.loadAutosave();
@@ -215,8 +221,10 @@
 
     ES.on((evt, payload) => {
       if (evt === 'file-changed') {
-        fileName.textContent = ES.state.fileName + (ES.state.fileHandle ? ' (linked)' : ' (read-only)');
-        fileName.title = ES.state.fileHandle ? 'Live-linked to local file' : 'Imported — use Export or Save (download)';
+        const linked = ES.state.fileHandle || ES.state.serverPath;
+        fileName.textContent = ES.state.fileName + (linked ? ' (linked)' : ' (read-only)');
+        fileName.title = ES.state.serverPath ? 'Saves to ' + ES.state.serverPath + ' through the local server'
+          : ES.state.fileHandle ? 'Live-linked to local file' : 'Imported — use Export or Save (download)';
       }
       if (evt === 'dirty-changed') {
         if (ES.state.dirty) {

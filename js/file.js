@@ -79,6 +79,48 @@ window.FileOps = (function() {
     }
   }
 
+  // Open a file through the local save server (server.js). Loads exactly
+  // like a disk file, so saves still go through the splice path.
+  async function openServerFile(rel) {
+    try {
+      const res = await fetch('api/file?path=' + encodeURIComponent(rel), { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+      const text = await res.text();
+      const name = rel.split('/').pop();
+      ES.setFile(null, name, rel);
+      ES.state.sourceHtml = text;
+      await window.ModeSwitch.loadIntoInitialMode(text);
+      ES.addRecent(name);
+      toast(`Opened ${rel} — changes will save to the server`, 'success');
+      ES.setDirty(false);
+    } catch (e) {
+      toast('Could not open ' + rel + ': ' + e.message, 'error');
+    }
+  }
+
+  async function saveToServer(html) {
+    const status = document.getElementById('save-status');
+    try {
+      status.dataset.state = 'saving';
+      status.textContent = 'Saving…';
+      const res = await fetch('api/file?path=' + encodeURIComponent(ES.state.serverPath), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        body: html,
+      });
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+      ES.state.sourceHtml = html;
+      ES.setDirty(false);
+      status.dataset.state = 'saved';
+      status.textContent = 'Saved';
+      toast('Saved', 'success');
+    } catch (e) {
+      status.dataset.state = 'error';
+      status.textContent = 'Error';
+      toast('Save failed: ' + e.message, 'error');
+    }
+  }
+
   function promptImport() {
     document.getElementById('file-input').click();
   }
@@ -406,7 +448,9 @@ window.FileOps = (function() {
   async function save() {
     const html = currentHtml();
     if (!html) return;
-    if (ES.state.fileHandle) {
+    if (ES.state.serverPath) {
+      await saveToServer(html);
+    } else if (ES.state.fileHandle) {
       try {
         // Pre-write conflict check: if the on-disk mtime is newer than
         // the last time we read or wrote, an external edit happened
@@ -632,5 +676,5 @@ h1 { font-size: 32px; }
     }
   });
 
-  return { init, openLocalFile, promptImport, importFile, save, exportFile, newBlank, reloadFromDisk, checkExternalChanges, currentHtml, supportsFSA };
+  return { init, openLocalFile, openServerFile, promptImport, importFile, save, exportFile, newBlank, reloadFromDisk, checkExternalChanges, currentHtml, supportsFSA };
 })();

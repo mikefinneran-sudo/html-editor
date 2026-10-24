@@ -110,23 +110,43 @@ window.Canvas = (function() {
     // Click to select. Also intercepts ALL link clicks defensively, in both
     // edit and preview mode, so the iframe content can't escape to the
     // parent frame (e.g. via <base target="_top"> in the source).
+    const selectTarget = (target) => {
+      const link = target && target.closest && target.closest('a');
+      if (link) ES.select(link);
+      else if (target && target.nodeType === 1 && target !== doc.documentElement && target !== body.parentNode) {
+        ES.select(target);
+      }
+    };
     body.addEventListener('click', (e) => {
       const link = e.target && e.target.closest && e.target.closest('a');
       if (link) {
         e.preventDefault();
         e.stopPropagation();
         if (isPreview) handlePreviewLinkClick(link);
-        else ES.select(link);
+        else selectTarget(e.target);
         return;
       }
       if (isPreview) return;
       e.preventDefault();
       e.stopPropagation();
-      const target = e.target;
-      if (target && target.nodeType === 1 && target !== doc.documentElement && target !== body.parentNode) {
-        ES.select(target);
-      }
+      selectTarget(e.target);
     }, true);
+
+    // Tap to select for touch and Apple Pencil. iPad Safari doesn't
+    // reliably synthesize click on non-interactive elements, so a short,
+    // still pointerdown → pointerup selects too (mouse keeps using click).
+    let tap = null;
+    body.addEventListener('pointerdown', (e) => {
+      tap = e.pointerType === 'mouse' ? null : { id: e.pointerId, x: e.clientX, y: e.clientY };
+    }, true);
+    body.addEventListener('pointerup', (e) => {
+      const t = tap;
+      tap = null;
+      if (!t || t.id !== e.pointerId || isPreview) return;
+      if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 10) return;
+      selectTarget(e.target);
+    }, true);
+    body.addEventListener('pointercancel', () => { tap = null; }, true);
 
     // Also catch any other navigation attempts (form submit, etc.)
     body.addEventListener('submit', (e) => {
@@ -182,9 +202,15 @@ window.Canvas = (function() {
     // Escape inside the iframe should also exit preview. Iframe keydowns
     // don't bubble up to the parent document, so the global handler in
     // keyboard.js never fires when focus is inside the canvas.
+    // Cmd/Ctrl+S is forwarded for the same reason (iPad keyboards usually
+    // leave focus inside the canvas after a tap).
     doc.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && window.__heExitPreview) {
         if (window.__heExitPreview()) e.preventDefault();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        window.FileOps.save();
       }
     }, true);
 
@@ -393,6 +419,7 @@ window.Canvas = (function() {
       width: rect.width + 'px',
       height: rect.height + 'px',
     });
+    if (window.Handles) window.Handles.update(sel, rect);
     const label = describe(sel);
     selLabel.textContent = label;
     selLabel.style.left = rect.left + 'px';
@@ -412,11 +439,11 @@ window.Canvas = (function() {
       const tbW = tbRect.width || 200;
       const tbH = tbRect.height || 32;
       const frameRect = canvasFrame.getBoundingClientRect();
-      const tbTop = rect.top - tbH - 8;
+      const tbTop = rect.top - tbH - 16;
       const useBelow = tbTop < 0;
       const left = Math.max(4, Math.min(rect.left + rect.width - tbW, frameRect.width - tbW - 4));
       selToolbar.style.left = left + 'px';
-      selToolbar.style.top = (useBelow ? rect.top + rect.height + 6 : tbTop) + 'px';
+      selToolbar.style.top = (useBelow ? rect.top + rect.height + 16 : tbTop) + 'px';
     });
   }
 
@@ -614,12 +641,22 @@ window.Canvas = (function() {
     return true;
   }
 
-  function showDropIndicator(el, position) {
+  // axis 'x' draws a vertical bar at the left/right edge (siblings laid
+  // out side by side); default is a horizontal bar at the top/bottom edge.
+  function showDropIndicator(el, position, axis) {
     const rect = relRect(el);
     if (!rect) { hideDropIndicator(); return; }
     dropIndicator.hidden = false;
     dropIndicator.classList.remove('vertical', 'inside');
-    if (position === 'inside') {
+    if (axis === 'x' && position !== 'inside') {
+      dropIndicator.classList.add('vertical');
+      Object.assign(dropIndicator.style, {
+        left: (position === 'before' ? rect.left : rect.left + rect.width - 2) + 'px',
+        top: rect.top + 'px',
+        width: '3px',
+        height: rect.height + 'px',
+      });
+    } else if (position === 'inside') {
       dropIndicator.classList.add('inside');
       Object.assign(dropIndicator.style, {
         left: rect.left + 'px',
@@ -705,6 +742,6 @@ window.Canvas = (function() {
   return {
     init, loadHtml, setDragData, clearDragData, getDragData, updateOverlay,
     deleteSelected, duplicateSelected, moveSelected, setPreview, setDevice,
-    insertElement,
+    insertElement, relRect, showDropIndicator, hideDropIndicator,
   };
 })();
